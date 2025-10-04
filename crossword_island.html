@@ -3,15 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Island Reise-Kreuzworträtsel</title>
+    <title>Island 2023 Kreuzworträtsel</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
             --cell-size: 40px;
         }
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f0f4f8;
         }
         .grid-container {
             display: grid;
@@ -41,6 +43,7 @@
             text-transform: uppercase;
             background-color: transparent;
             color: #1e293b;
+            caret-color: #3b82f6;
         }
         .cell input:focus {
             outline: 2px solid #3b82f6;
@@ -60,6 +63,7 @@
             font-size: 0.7rem;
             font-weight: bold;
             color: #475569;
+            pointer-events: none;
         }
         .clue-list ol {
             padding-left: 1.5rem;
@@ -71,32 +75,21 @@
 
         /* Responsive adjustments */
         @media (max-width: 768px) {
-            :root {
-                --cell-size: 30px;
-            }
-             body {
-                padding: 0.5rem;
-            }
+            :root { --cell-size: 30px; }
+             body { padding: 0.5rem; }
         }
          @media (max-width: 480px) {
-            :root {
-                --cell-size: 24px;
-            }
-            .cell input {
-                 font-size: 1rem;
-            }
-             .number {
-                font-size: 0.6rem;
-            }
+            :root { --cell-size: clamp(20px, 6vw, 24px); }
+            .cell input { font-size: 1rem; }
+            .number { font-size: 0.6rem; }
         }
-
     </style>
 </head>
 <body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
 
     <div class="w-full max-w-6xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-lg">
         <h1 class="text-3xl sm:text-4xl font-bold text-center text-slate-800 mb-2">Island Reise-Kreuzworträtsel</h1>
-        <p class="text-center text-slate-500 mb-6 sm:mb-8">Teste dein Wissen über die geplante Reiseroute!</p>
+        <p class="text-center text-slate-500 mb-6 sm:mb-8">Erinnert ihr euch noch an alle Reiseziele?</p>
 
         <div class="flex flex-col lg:flex-row gap-8">
             <!-- Grid -->
@@ -128,12 +121,12 @@
                         Zurücksetzen
                     </button>
                 </div>
-                <div id="feedback" class="text-center mt-4 font-medium"></div>
+                <div id="feedback" class="text-center mt-4 font-medium h-6"></div>
             </div>
         </div>
     </div>
 
-    <script>
+    <script defer>
         const puzzleData = {
             width: 15,
             height: 15,
@@ -162,48 +155,49 @@
         const feedback = document.getElementById('feedback');
 
         let grid = [];
-        let clueNumber = 1;
+        const numberLocations = new Map();
 
         function initializeGrid() {
             grid = Array(puzzleData.height).fill(null).map(() => Array(puzzleData.width).fill({ letter: null, empty: true, inputs: {} }));
-            
-            puzzleData.words.sort((a, b) => (a.row * 100 + a.col) - (b.row * 100 + b.col));
 
-            let wordNumberMap = new Map();
+            // Assign unique numbers to start of words
+            let clueNumber = 1;
+            const processedStarts = new Set();
+            [...puzzleData.words]
+                .sort((a, b) => (a.row * 100 + a.col) - (b.row * 100 + b.col))
+                .forEach(wordData => {
+                    const startKey = `${wordData.row}-${wordData.col}`;
+                    if (!processedStarts.has(startKey)) {
+                        processedStarts.add(startKey);
+                        numberLocations.set(startKey, clueNumber);
+                        clueNumber++;
+                    }
+                });
 
+            // Populate the grid data structure
             puzzleData.words.forEach(wordData => {
+                const startKey = `${wordData.row}-${wordData.col}`;
+                wordData.number = numberLocations.get(startKey);
+
                 let r = wordData.row;
                 let c = wordData.col;
-                const wordId = `${r}-${c}`;
-                
-                if (!wordNumberMap.has(wordId)) {
-                    wordNumberMap.set(wordId, clueNumber++);
-                }
-                const currentWordNumber = wordNumberMap.get(wordId);
-                wordData.number = currentWordNumber;
 
                 for (let i = 0; i < wordData.word.length; i++) {
-                    grid[r][c].letter = wordData.word[i];
-                    grid[r][c].empty = false;
+                    grid[r][c] = {
+                        ...grid[r][c],
+                        letter: wordData.word[i],
+                        empty: false,
+                    };
                     grid[r][c].inputs[wordData.direction] = true;
 
                     if (wordData.direction === 'across') c++;
                     else r++;
                 }
             });
-
-            clueNumber = 1;
         }
 
         function renderGrid() {
             gridContainer.innerHTML = '';
-             let clueMap = new Map();
-             puzzleData.words.forEach(w => {
-                if(!clueMap.has(`${w.row}-${w.col}`)){ 
-                    clueMap.set(`${w.row}-${w.col}`, w.number);
-                }
-             });
-
             for (let r = 0; r < puzzleData.height; r++) {
                 for (let c = 0; c < puzzleData.width; c++) {
                     const cellData = grid[r][c];
@@ -223,10 +217,10 @@
                         cellDiv.appendChild(input);
 
                         const numberKey = `${r}-${c}`;
-                        if (clueMap.has(numberKey)) {
+                        if (numberLocations.has(numberKey)) {
                             const numberSpan = document.createElement('span');
                             numberSpan.classList.add('number');
-                            numberSpan.textContent = clueMap.get(numberKey);
+                            numberSpan.textContent = numberLocations.get(numberKey);
                             cellDiv.appendChild(numberSpan);
                         }
                     }
@@ -238,51 +232,53 @@
         function renderClues() {
             acrossClues.innerHTML = '';
             downClues.innerHTML = '';
+            const addedClues = new Set();
 
-            const sortedWords = [...puzzleData.words].sort((a,b) => a.number - b.number);
+            [...puzzleData.words]
+                .sort((a,b) => a.number - b.number)
+                .forEach(wordData => {
+                    const clueKey = `${wordData.number}-${wordData.direction}`;
+                    if (addedClues.has(clueKey)) return;
 
-            sortedWords.forEach(wordData => {
-                const li = document.createElement('li');
-                li.innerHTML = `<strong>${wordData.number}.</strong> ${wordData.clue}`;
-                if (wordData.direction === 'across') {
-                    acrossClues.appendChild(li);
-                } else {
-                    downClues.appendChild(li);
-                }
-            });
+                    const li = document.createElement('li');
+                    li.innerHTML = `<strong>${wordData.number}.</strong> ${wordData.clue}`;
+                    if (wordData.direction === 'across') {
+                        acrossClues.appendChild(li);
+                    } else {
+                        downClues.appendChild(li);
+                    }
+                    addedClues.add(clueKey);
+                });
         }
         
         function getNextInput(row, col, direction) {
-            if (direction === 'across') col++;
-            else row++;
-            if (row < puzzleData.height && col < puzzleData.width) {
-                 return gridContainer.querySelector(`input[data-row='${row}'][data-col='${col}']`);
+            let nextR = row, nextC = col;
+            if (direction === 'across') nextC++; else nextR++;
+            if (nextR < puzzleData.height && nextC < puzzleData.width) {
+                 return gridContainer.querySelector(`input[data-row='${nextR}'][data-col='${nextC}']`);
             }
             return null;
         }
 
         function getPrevInput(row, col, direction) {
-            if (direction === 'across') col--;
-            else row--;
-            if (row >= 0 && col >= 0) {
-                 return gridContainer.querySelector(`input[data-row='${row}'][data-col='${col}']`);
+            let prevR = row, prevC = col;
+            if (direction === 'across') prevC--; else prevR--;
+            if (prevR >= 0 && prevC >= 0) {
+                 return gridContainer.querySelector(`input[data-row='${prevR}'][data-col='${prevC}']`);
             }
             return null;
         }
-
+        
         function handleInput(e) {
             const input = e.target;
             const r = parseInt(input.dataset.row);
             const c = parseInt(input.dataset.col);
             
-            // Auto-focus next input
             if (input.value.length === 1) {
                 const cellData = grid[r][c];
-                let direction = cellData.inputs.across ? 'across' : 'down';
+                const direction = cellData.inputs.across ? 'across' : 'down';
                 const nextInput = getNextInput(r, c, direction);
-                if (nextInput) {
-                    nextInput.focus();
-                }
+                if (nextInput) nextInput.focus();
             }
         }
         
@@ -291,37 +287,25 @@
             const r = parseInt(input.dataset.row);
             const c = parseInt(input.dataset.col);
             const cellData = grid[r][c];
-            let direction = cellData.inputs.across ? 'across' : 'down'; // Simple preference
+            const direction = cellData.inputs.across ? 'across' : 'down';
 
              switch (e.key) {
-                case 'ArrowRight':
-                    getNextInput(r,c,'across')?.focus();
-                    e.preventDefault();
-                    break;
-                case 'ArrowLeft':
-                     getPrevInput(r,c,'across')?.focus();
-                    e.preventDefault();
-                    break;
-                case 'ArrowDown':
-                     getNextInput(r,c,'down')?.focus();
-                    e.preventDefault();
-                    break;
-                case 'ArrowUp':
-                     getPrevInput(r,c,'down')?.focus();
-                    e.preventDefault();
-                    break;
+                case 'ArrowRight': getNextInput(r, c, 'across')?.focus(); e.preventDefault(); break;
+                case 'ArrowLeft': getPrevInput(r, c, 'across')?.focus(); e.preventDefault(); break;
+                case 'ArrowDown': getNextInput(r, c, 'down')?.focus(); e.preventDefault(); break;
+                case 'ArrowUp': getPrevInput(r, c, 'down')?.focus(); e.preventDefault(); break;
                 case 'Backspace':
                     if (!input.value) {
                          const prevInput = getPrevInput(r, c, direction);
                          if (prevInput) {
-                            prevInput.focus();
                             prevInput.value = '';
+                            prevInput.focus();
                          }
+                         e.preventDefault();
                     }
                     break;
             }
         }
-
 
         function checkAnswers() {
             let allCorrect = true;
@@ -346,6 +330,7 @@
                     allCorrect = false;
                 }
             });
+
             if (anyFilled && allCorrect) {
                  feedback.textContent = 'Herzlichen Glückwunsch! Alles richtig!';
                  feedback.style.color = '#16a34a';
