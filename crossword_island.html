@@ -88,7 +88,7 @@
 <body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
 
     <div class="w-full max-w-6xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-lg">
-        <h1 class="text-3xl sm:text-4xl font-bold text-center text-slate-800 mb-2">Island 2023 Kreuzworträtsel</h1>
+        <h1 class="text-3xl sm:text-4xl font-bold text-center text-slate-800 mb-2">Island Reise-Kreuzworträtsel</h1>
         <p class="text-center text-slate-500 mb-6 sm:mb-8">Erinnert ihr euch noch an alle Reiseziele?</p>
 
         <div class="flex flex-col lg:flex-row gap-8">
@@ -158,7 +158,13 @@
         const numberLocations = new Map();
 
         function initializeGrid() {
-            grid = Array(puzzleData.height).fill(null).map(() => Array(puzzleData.width).fill({ letter: null, empty: true, inputs: {} }));
+            grid = [];
+            for (let r = 0; r < puzzleData.height; r++) {
+                grid[r] = [];
+                for (let c = 0; c < puzzleData.width; c++) {
+                    grid[r][c] = { letter: null, empty: true, inputs: {} };
+                }
+            }
 
             // Assign unique numbers to start of words
             let clueNumber = 1;
@@ -183,12 +189,17 @@
                 let c = wordData.col;
 
                 for (let i = 0; i < wordData.word.length; i++) {
+                    if (r >= puzzleData.height || c >= puzzleData.width) {
+                        console.error(`Word "${wordData.word}" is out of bounds.`);
+                        break;
+                    }
+
                     grid[r][c] = {
                         ...grid[r][c],
                         letter: wordData.word[i],
                         empty: false,
+                        inputs: { ...grid[r][c].inputs, [wordData.direction]: true }
                     };
-                    grid[r][c].inputs[wordData.direction] = true;
 
                     if (wordData.direction === 'across') c++;
                     else r++;
