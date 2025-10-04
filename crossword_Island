@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Island Reise-Kreuzworträtsel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            --cell-size: 40px;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(15, var(--cell-size));
+            grid-template-rows: repeat(15, var(--cell-size));
+            border: 2px solid #334155;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            background-color: #334155;
+        }
+        .cell {
+            width: var(--cell-size);
+            height: var(--cell-size);
+            background-color: white;
+            border: 1px solid #cbd5e1;
+            position: relative;
+        }
+        .cell.empty {
+            background-color: #334155;
+        }
+        .cell input {
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            border: none;
+            padding: 0;
+            font-size: 1.25rem;
+            text-transform: uppercase;
+            background-color: transparent;
+            color: #1e293b;
+        }
+        .cell input:focus {
+            outline: 2px solid #3b82f6;
+            background-color: #eff6ff;
+        }
+        .cell input.correct {
+            color: #16a34a;
+            font-weight: bold;
+        }
+        .cell input.incorrect {
+            color: #dc2626;
+        }
+        .number {
+            position: absolute;
+            top: 1px;
+            left: 2px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            color: #475569;
+        }
+        .clue-list ol {
+            padding-left: 1.5rem;
+        }
+        .clue-list li {
+            margin-bottom: 0.5rem;
+            color: #334155;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            :root {
+                --cell-size: 30px;
+            }
+             body {
+                padding: 0.5rem;
+            }
+        }
+         @media (max-width: 480px) {
+            :root {
+                --cell-size: 24px;
+            }
+            .cell input {
+                 font-size: 1rem;
+            }
+             .number {
+                font-size: 0.6rem;
+            }
+        }
+
+    </style>
+</head>
+<body class="bg-slate-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-6xl mx-auto bg-white p-4 sm:p-6 md:p-8 rounded-2xl shadow-lg">
+        <h1 class="text-3xl sm:text-4xl font-bold text-center text-slate-800 mb-2">Island Reise-Kreuzworträtsel</h1>
+        <p class="text-center text-slate-500 mb-6 sm:mb-8">Teste dein Wissen über die geplante Reiseroute!</p>
+
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Grid -->
+            <div class="flex-shrink-0 mx-auto">
+                <div id="grid-container" class="grid-container"></div>
+            </div>
+
+            <!-- Clues -->
+            <div class="flex-grow">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="clue-list">
+                        <h2 class="text-2xl font-semibold text-slate-700 mb-4 border-b-2 border-slate-300 pb-2">Waagerecht</h2>
+                        <ol id="across-clues"></ol>
+                    </div>
+                    <div class="clue-list">
+                        <h2 class="text-2xl font-semibold text-slate-700 mb-4 border-b-2 border-slate-300 pb-2">Senkrecht</h2>
+                        <ol id="down-clues"></ol>
+                    </div>
+                </div>
+                 <!-- Buttons -->
+                <div class="mt-8 flex flex-wrap gap-4 justify-center">
+                    <button id="check-btn" class="bg-blue-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-700 transition-colors shadow-md">
+                        Prüfen
+                    </button>
+                    <button id="solve-btn" class="bg-green-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-700 transition-colors shadow-md">
+                        Lösung anzeigen
+                    </button>
+                     <button id="reset-btn" class="bg-red-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-700 transition-colors shadow-md">
+                        Zurücksetzen
+                    </button>
+                </div>
+                <div id="feedback" class="text-center mt-4 font-medium"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const puzzleData = {
+            width: 15,
+            height: 15,
+            words: [
+                { word: "GEYSIR", clue: "Berühmte heiße Quelle, die regelmäßig Wasserfontänen in die Luft schießt (Tag 2).", row: 0, col: 7, direction: "down" },
+                { word: "REYNISFJARA", clue: "Bekannter schwarzer Sandstrand mit Basaltsäulen (Tag 3).", row: 2, col: 0, direction: "across" },
+                { word: "HUSAVIK", clue: "Gilt als die Walbeobachtungs-Hauptstadt Islands (Tag 7).", row: 2, col: 6, direction: "down" },
+                { word: "THINGVELLIR", clue: "Nationalpark, in dem die nordamerikanische und die eurasische Platte auseinanderdriften (Tag 2).", row: 4, col: 4, direction: "across" },
+                { word: "SKAFTAFELL", clue: "Nationalpark und Wandergebiet, Teil des Vatnajökull-Nationalparks (Tag 4).", row: 4, col: 10, direction: "down" },
+                { word: "GULLFOSS", clue: "Der 'goldene Wasserfall', eine der Hauptattraktionen im Golden Circle (Tag 2).", row: 6, col: 0, direction: "down" },
+                { word: "REYKJAVIK", clue: "Die Hauptstadt von Island (Tag 11).", row: 7, col: 8, direction: "across" },
+                { word: "AKUREYRI", clue: "Größte Stadt im Norden Islands mit einem sehenswerten botanischen Garten (Tag 8).", row: 9, col: 1, direction: "down" },
+                { word: "DETTIFOSS", clue: "Einer der leistungsstärksten Wasserfälle Europas im Nordosten (Tag 6).", row: 11, col: 0, direction: "across" },
+                { word: "KIRKJUFELL", clue: "Ikonischer, kegelförmiger Berg auf der Halbinsel Snæfellsnes (Tag 10).", row: 11, col: 10, direction: "down" },
+                { word: "JOKULSARLON", clue: "Berühmte Gletscherlagune mit schwimmenden Eisbergen (Tag 4).", row: 13, col: 4, direction: "across" },
+                { word: "MYVATN", clue: "Region bekannt für ihre geothermischen Bäder und einzigartigen Lavaformationen (Tag 6).", row: 6, col: 3, direction: "down"},
+            ]
+        };
+
+        const gridContainer = document.getElementById('grid-container');
+        const acrossClues = document.getElementById('across-clues');
+        const downClues = document.getElementById('down-clues');
+        const checkBtn = document.getElementById('check-btn');
+        const solveBtn = document.getElementById('solve-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const feedback = document.getElementById('feedback');
+
+        let grid = [];
+        let clueNumber = 1;
+
+        function initializeGrid() {
+            grid = Array(puzzleData.height).fill(null).map(() => Array(puzzleData.width).fill({ letter: null, empty: true, inputs: {} }));
+            
+            puzzleData.words.sort((a, b) => (a.row * 100 + a.col) - (b.row * 100 + b.col));
+
+            let wordNumberMap = new Map();
+
+            puzzleData.words.forEach(wordData => {
+                let r = wordData.row;
+                let c = wordData.col;
+                const wordId = `${r}-${c}`;
+                
+                if (!wordNumberMap.has(wordId)) {
+                    wordNumberMap.set(wordId, clueNumber++);
+                }
+                const currentWordNumber = wordNumberMap.get(wordId);
+                wordData.number = currentWordNumber;
+
+                for (let i = 0; i < wordData.word.length; i++) {
+                    grid[r][c].letter = wordData.word[i];
+                    grid[r][c].empty = false;
+                    grid[r][c].inputs[wordData.direction] = true;
+
+                    if (wordData.direction === 'across') c++;
+                    else r++;
+                }
+            });
+
+            clueNumber = 1;
+        }
+
+        function renderGrid() {
+            gridContainer.innerHTML = '';
+             let clueMap = new Map();
+             puzzleData.words.forEach(w => {
+                if(!clueMap.has(`${w.row}-${w.col}`)){
+                    clueMap.set(`${w.row}-${w.col}`, w.number);
+                }
+             });
+
+            for (let r = 0; r < puzzleData.height; r++) {
+                for (let c = 0; c < puzzleData.width; c++) {
+                    const cellData = grid[r][c];
+                    const cellDiv = document.createElement('div');
+                    cellDiv.classList.add('cell');
+                    if (cellData.empty) {
+                        cellDiv.classList.add('empty');
+                    } else {
+                        const input = document.createElement('input');
+                        input.type = 'text';
+                        input.maxLength = 1;
+                        input.dataset.row = r;
+                        input.dataset.col = c;
+                        input.addEventListener('input', handleInput);
+                        input.addEventListener('keydown', handleKeyDown);
+                        input.addEventListener('focus', (e) => e.target.select());
+                        cellDiv.appendChild(input);
+
+                        const numberKey = `${r}-${c}`;
+                        if (clueMap.has(numberKey)) {
+                            const numberSpan = document.createElement('span');
+                            numberSpan.classList.add('number');
+                            numberSpan.textContent = clueMap.get(numberKey);
+                            cellDiv.appendChild(numberSpan);
+                        }
+                    }
+                    gridContainer.appendChild(cellDiv);
+                }
+            }
+        }
+
+        function renderClues() {
+            acrossClues.innerHTML = '';
+            downClues.innerHTML = '';
+
+            const sortedWords = [...puzzleData.words].sort((a,b) => a.number - b.number);
+
+            sortedWords.forEach(wordData => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${wordData.number}.</strong> ${wordData.clue}`;
+                if (wordData.direction === 'across') {
+                    acrossClues.appendChild(li);
+                } else {
+                    downClues.appendChild(li);
+                }
+            });
+        }
+        
+        function getNextInput(row, col, direction) {
+            if (direction === 'across') col++;
+            else row++;
+            if (row < puzzleData.height && col < puzzleData.width) {
+                 return gridContainer.querySelector(`input[data-row='${row}'][data-col='${col}']`);
+            }
+            return null;
+        }
+
+        function getPrevInput(row, col, direction) {
+            if (direction === 'across') col--;
+            else row--;
+            if (row >= 0 && col >= 0) {
+                 return gridContainer.querySelector(`input[data-row='${row}'][data-col='${col}']`);
+            }
+            return null;
+        }
+
+        function handleInput(e) {
+            const input = e.target;
+            const r = parseInt(input.dataset.row);
+            const c = parseInt(input.dataset.col);
+            
+            // Auto-focus next input
+            if (input.value.length === 1) {
+                const cellData = grid[r][c];
+                let direction = cellData.inputs.across ? 'across' : 'down';
+                const nextInput = getNextInput(r, c, direction);
+                if (nextInput) {
+                    nextInput.focus();
+                }
+            }
+        }
+        
+        function handleKeyDown(e) {
+            const input = e.target;
+            const r = parseInt(input.dataset.row);
+            const c = parseInt(input.dataset.col);
+            const cellData = grid[r][c];
+            let direction = cellData.inputs.across ? 'across' : 'down'; // Simple preference
+
+             switch (e.key) {
+                case 'ArrowRight':
+                    getNextInput(r,c,'across')?.focus();
+                    e.preventDefault();
+                    break;
+                case 'ArrowLeft':
+                     getPrevInput(r,c,'across')?.focus();
+                    e.preventDefault();
+                    break;
+                case 'ArrowDown':
+                     getNextInput(r,c,'down')?.focus();
+                    e.preventDefault();
+                    break;
+                case 'ArrowUp':
+                     getPrevInput(r,c,'down')?.focus();
+                    e.preventDefault();
+                    break;
+                case 'Backspace':
+                    if (!input.value) {
+                         const prevInput = getPrevInput(r, c, direction);
+                         if (prevInput) {
+                            prevInput.focus();
+                            prevInput.value = '';
+                         }
+                    }
+                    break;
+            }
+        }
+
+
+        function checkAnswers() {
+            let allCorrect = true;
+            let anyFilled = false;
+            feedback.textContent = '';
+            const inputs = gridContainer.querySelectorAll('input');
+            inputs.forEach(input => {
+                const r = parseInt(input.dataset.row);
+                const c = parseInt(input.dataset.col);
+                input.classList.remove('correct', 'incorrect');
+
+                if (input.value) {
+                    anyFilled = true;
+                    const correctLetter = grid[r][c].letter.toUpperCase();
+                    if (input.value.toUpperCase() === correctLetter) {
+                        input.classList.add('correct');
+                    } else {
+                        input.classList.add('incorrect');
+                        allCorrect = false;
+                    }
+                } else {
+                    allCorrect = false;
+                }
+            });
+            if (anyFilled && allCorrect) {
+                 feedback.textContent = 'Herzlichen Glückwunsch! Alles richtig!';
+                 feedback.style.color = '#16a34a';
+            } else if (anyFilled) {
+                 feedback.textContent = 'Einige Antworten sind noch nicht korrekt.';
+                 feedback.style.color = '#dc2626';
+            } else {
+                 feedback.textContent = 'Fülle das Rätsel aus, um es zu prüfen.';
+                 feedback.style.color = '#475569';
+            }
+        }
+
+        function solvePuzzle() {
+            feedback.textContent = '';
+            const inputs = gridContainer.querySelectorAll('input');
+            inputs.forEach(input => {
+                const r = parseInt(input.dataset.row);
+                const c = parseInt(input.dataset.col);
+                input.value = grid[r][c].letter;
+                input.classList.remove('incorrect');
+                input.classList.add('correct');
+            });
+        }
+        
+        function resetPuzzle() {
+            feedback.textContent = '';
+            const inputs = gridContainer.querySelectorAll('input');
+            inputs.forEach(input => {
+                input.value = '';
+                input.classList.remove('correct', 'incorrect');
+            });
+        }
+
+        checkBtn.addEventListener('click', checkAnswers);
+        solveBtn.addEventListener('click', solvePuzzle);
+        resetBtn.addEventListener('click', resetPuzzle);
+
+        initializeGrid();
+        renderGrid();
+        renderClues();
+    </script>
+</body>
+</html>
