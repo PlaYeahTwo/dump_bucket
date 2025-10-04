@@ -158,7 +158,13 @@
         const numberLocations = new Map();
 
         function initializeGrid() {
-            grid = Array(puzzleData.height).fill(null).map(() => Array(puzzleData.width).fill({ letter: null, empty: true, inputs: {} }));
+            grid = [];
+            for (let r = 0; r < puzzleData.height; r++) {
+                grid[r] = [];
+                for (let c = 0; c < puzzleData.width; c++) {
+                    grid[r][c] = { letter: null, empty: true, inputs: {} };
+                }
+            }
 
             // Assign unique numbers to start of words
             let clueNumber = 1;
@@ -183,12 +189,17 @@
                 let c = wordData.col;
 
                 for (let i = 0; i < wordData.word.length; i++) {
+                    if (r >= puzzleData.height || c >= puzzleData.width) {
+                        console.error(`Word "${wordData.word}" is out of bounds.`);
+                        break;
+                    }
+
                     grid[r][c] = {
                         ...grid[r][c],
                         letter: wordData.word[i],
                         empty: false,
+                        inputs: { ...grid[r][c].inputs, [wordData.direction]: true }
                     };
-                    grid[r][c].inputs[wordData.direction] = true;
 
                     if (wordData.direction === 'across') c++;
                     else r++;
